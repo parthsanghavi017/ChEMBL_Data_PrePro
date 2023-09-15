@@ -49,9 +49,14 @@ def preprocess_data(chembl_id):
         st.success("Data preprocessing completed.")
 
         # Provide download links to individual CSV files
-        st.markdown(f"**Download Raw Data:** [Raw_Data.csv](/{output_dir}/Raw_Data.csv)")
-        st.markdown(f"**Download Filtered Data:** [Filtered_Data.csv](/{output_dir}/Filtered_Data.csv)")
-        st.markdown(f"**Download Preprocessed Data:** [Preprocessed_Data.csv](/{output_dir}/Preprocessed_Data.csv)")
+        download_links = {
+            "Raw Data": f"{output_dir}/Raw_Data.csv",
+            "Filtered Data": f"{output_dir}/Filtered_Data.csv",
+            "Preprocessed Data": f"{output_dir}/Preprocessed_Data.csv"
+        }
+
+        for file_name, file_path in download_links.items():
+            st.markdown(f"**Download {file_name}:** [Link](/{file_path})")
 
         st.write("\n---\n")
         st.write("Powered by Parth Sanghavi")
