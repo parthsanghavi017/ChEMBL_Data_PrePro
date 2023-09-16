@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import os
 from chembl_webresource_client.new_client import new_client
 
 # Define a Streamlit app function
@@ -32,31 +30,14 @@ def preprocess_data(chembl_id):
         activity = new_client.activity
         res = activity.filter(target_chembl_id=selected_target).filter(standard_type="IC50").filter(unit="nM")
 
-        # Create a directory to store CSV files
-        output_dir = f"preprocessed_data_{chembl_id}"
-        os.makedirs(output_dir, exist_ok=True)
-
         # Step 1: Save the raw data to 'Raw_Data.csv'
         raw_data = pd.DataFrame.from_dict(res)
-        raw_data.to_csv(f"{output_dir}/Raw_Data.csv", index=False)
-
         st.write("1. **Raw_Data.csv**: Contains the original data retrieved from ChEMBL.")
-        st.write("2. **Filtered_Data.csv**: Contains data after applying filters for standard type as IC50,  standard units as nM, and '=' as the standard relation.")
-        st.write("3. **Preprocessed_Data.csv**: Contains the final preprocessed data with selected columns.")
+        st.markdown(get_table_download_link(raw_data, f"{chembl_id}_Raw_Data.csv"), unsafe_allow_html=True)
 
         # Perform IC50 to pIC50 conversion (you can add this part if needed)
 
         st.success("Data preprocessing completed.")
-
-        # Provide download links to individual CSV files
-        download_links = {
-            "Raw Data": f"{output_dir}/Raw_Data.csv",
-            "Filtered Data": f"{output_dir}/Filtered_Data.csv",
-            "Preprocessed Data": f"{output_dir}/Preprocessed_Data.csv"
-        }
-
-        for file_name, file_path in download_links.items():
-            st.markdown(get_download_link(file_path, file_name), unsafe_allow_html=True)
 
         st.write("\n---\n")
         st.write("Powered by Parth Sanghavi")
@@ -67,11 +48,12 @@ def preprocess_data(chembl_id):
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
 
-# Function to generate download links
-def get_download_link(file_path, file_name):
-    with open(file_path, "rb") as file:
-        file_bytes = file.read()
-    return f'<a href="data:file/csv;base64,{file_bytes.decode()}" download="{file_name}">Download {file_name}</a>'
+# Function to generate a download link for a DataFrame
+def get_table_download_link(df, filename):
+    csv = df.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()
+    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">Download {filename}</a>'
+    return href
 
 # Run the Streamlit app
 if __name__ == "__main__":
