@@ -59,6 +59,7 @@ def preprocess_data(chembl_id):
 
         st.write("\n---\n")
         st.write("Powered by Parth Sanghavi")
+        st.write('Preprocessed_Data.csv can be uploaded to the QSAR webapp (link coming soon) to generate a robust 2D-QSAR model')
 
         # For feedback
         st.write("For feedback and inquiries, please email: unprofessor.edu@gmail.com")
