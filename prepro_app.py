@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import base64
 from chembl_webresource_client.new_client import new_client
 
 # Define a Streamlit app function
