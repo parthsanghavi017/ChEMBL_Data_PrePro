@@ -56,7 +56,7 @@ def preprocess_data(chembl_id):
         }
 
         for file_name, file_path in download_links.items():
-            st.markdown(f"**Download {file_name}:** [Link](/{file_path})")
+            st.markdown(get_download_link(file_path, file_name), unsafe_allow_html=True)
 
         st.write("\n---\n")
         st.write("Powered by Parth Sanghavi")
@@ -66,6 +66,12 @@ def preprocess_data(chembl_id):
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
+
+# Function to generate download links
+def get_download_link(file_path, file_name):
+    with open(file_path, "rb") as file:
+        file_bytes = file.read()
+    return f'<a href="data:file/csv;base64,{file_bytes.decode()}" download="{file_name}">Download {file_name}</a>'
 
 # Run the Streamlit app
 if __name__ == "__main__":
