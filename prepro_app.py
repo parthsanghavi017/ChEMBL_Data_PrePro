@@ -39,8 +39,7 @@ def preprocess_data(chembl_id):
         st.write("1. **Raw_Data.csv**: Contains the original data retrieved from ChEMBL.")
 
         # Step 2: Filter data and save to 'Filtered_Data.csv'
-        filtered_data = raw_data[['molecule_chembl_id', 'canonical_smiles', 'standard_value']]
-        filtered_data = filtered_data.dropna(subset=['standard_value'])
+        filtered_data = raw_data.dropna(subset=['standard_value'])
         filtered_data = filtered_data.drop_duplicates(subset=['canonical_smiles', 'molecule_chembl_id'])
         filtered_data.to_csv("Filtered_Data.csv", index=False)
 
