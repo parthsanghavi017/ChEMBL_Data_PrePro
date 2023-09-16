@@ -39,22 +39,24 @@ def preprocess_data(chembl_id):
         st.write("1. **Raw_Data.csv**: Contains the original data retrieved from ChEMBL.")
 
         # Step 2: Filter data and save to 'Filtered_Data.csv'
-        filtered_data = raw_data.dropna(subset=['standard_value'])
+        filtered_data = raw_data[['molecule_chembl_id', 'canonical_smiles', 'standard_value']]
+        filtered_data = filtered_data.dropna(subset=['standard_value'])
         filtered_data = filtered_data.drop_duplicates(subset=['canonical_smiles', 'molecule_chembl_id'])
         filtered_data.to_csv("Filtered_Data.csv", index=False)
 
         st.write("2. **Filtered_Data.csv**: Contains data after applying filters for standard type as IC50, standard relation as '=', and removing empty standard values and duplicates.")
 
         # Step 3: Calculate pIC50 and save to 'Preprocessed_Data.csv'
-        filtered_data['pIC50'] = -np.log10(filtered_data['standard_value'].astype(float) * 1e-9)
-        filtered_data.to_csv("Preprocessed_Data.csv", index=False)
+        preprocessed_data = filtered_data[['molecule_chembl_id', 'canonical_smiles', 'standard_value']]
+        preprocessed_data['pIC50'] = -np.log10(filtered_data['standard_value'].astype(float) * 1e-9)
+        preprocessed_data.to_csv("Preprocessed_Data.csv", index=False)
 
         st.write("3. **Preprocessed_Data.csv**: Contains the final preprocessed data with selected columns including calculated pIC50 values.")
 
         # Provide download links to individual CSV files
         st.markdown(get_table_download_link(raw_data, "Raw_Data.csv"), unsafe_allow_html=True)
         st.markdown(get_table_download_link(filtered_data, "Filtered_Data.csv"), unsafe_allow_html=True)
-        st.markdown(get_table_download_link(filtered_data, "Preprocessed_Data.csv"), unsafe_allow_html=True)
+        st.markdown(get_table_download_link(preprocessed_data, "Preprocessed_Data.csv"), unsafe_allow_html=True)
 
         st.write("\n---\n")
         st.write("Powered by Parth Sanghavi")
