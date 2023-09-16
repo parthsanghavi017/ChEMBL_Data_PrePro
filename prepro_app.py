@@ -39,7 +39,7 @@ def preprocess_data(chembl_id):
 
         # Save the preprocessed data to 'Preprocessed_Data.csv'
         st.write("3. **Preprocessed_Data.csv**: Contains the final preprocessed data with selected columns.")
-        st.markdown(get_table_download_link(filtered_data, f"{Preprocessed_Data.csv"), unsafe_allow_html=True)
+        st.markdown(get_table_download_link(filtered_data, f"{Preprocessed_Data.csv"), unsafe_allow_html=True)}
 
         st.success("Data preprocessing completed.")
 
