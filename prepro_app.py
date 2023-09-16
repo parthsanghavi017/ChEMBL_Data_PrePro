@@ -51,3 +51,16 @@ def preprocess_data(chembl_id):
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
+
+
+# Function to generate a download link for a DataFrame
+def get_table_download_link(df, filename):
+    csv = df.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()
+    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">Download {filename}</a>'
+    return href
+
+# Run the Streamlit app
+if __name__ == "__main__":
+    main()
+
