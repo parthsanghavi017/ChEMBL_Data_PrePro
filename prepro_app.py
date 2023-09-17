@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from chembl_webresource_client.new_client import new_client
 import base64
+import time
 
 # Define a Streamlit app function
 def main():
@@ -15,16 +16,42 @@ def main():
     chembl_id = st.text_input("Enter ChemBL ID:")
 
     if st.button("Preprocess Data"):
+        # Measure the start time
+        start_time = time.time()
+
         # Preprocess data based on user input
-        preprocess_data(chembl_id)
+        success, num_initial_molecules, num_filtered_molecules = preprocess_data(chembl_id)
+
+        # Measure the end time
+        end_time = time.time()
+
+        # Calculate the processing time
+        processing_time = end_time - start_time
+
+        if success:
+            # Display processing time and molecule information
+            st.write(f"Data preprocessing completed in {processing_time:.2f} seconds.")
+            st.write(f"Initial number of molecules: {num_initial_molecules}")
+            st.write(f"Number of molecules after filtering: {num_filtered_molecules}")
+        else:
+            # Display an error message for invalid ChemBL ID
+            st.error("Please enter a valid ChemBL ID.")
 
 # Define the preprocess_data function
 def preprocess_data(chembl_id):
     try:
+        # Remove spaces from the user input
+        chembl_id = chembl_id.strip()
+
         # Target search
         target = new_client.target
         target_query = target.search(chembl_id)
         targets = pd.DataFrame.from_dict(target_query)
+
+        if targets.empty:
+            # Display an error message if no data is found
+            st.error("No data found for the provided ChemBL ID.")
+            return False, 0, 0  # Return 0 for both initial and filtered molecules
 
         selected_target = targets.target_chembl_id[0]
 
@@ -38,12 +65,16 @@ def preprocess_data(chembl_id):
 
         st.write("1. **Raw_Data.csv**: Contains the original data retrieved from ChEMBL.")
 
+        num_initial_molecules = len(raw_data)
+
         # Step 2: Filter data and save to 'Filtered_Data.csv'
         filtered_data = raw_data.dropna(subset=['standard_value'])
         filtered_data = filtered_data.drop_duplicates(subset=['canonical_smiles', 'molecule_chembl_id'])
         filtered_data.to_csv("Filtered_Data.csv", index=False)
 
         st.write("2. **Filtered_Data.csv**: Contains data after applying filters for standard type as IC50, standard relation as '=', and removing empty standard values and duplicates.")
+
+        num_filtered_molecules = len(filtered_data)
 
         # Step 3: Calculate pIC50 and save to 'Preprocessed_Data.csv'
         preprocessed_data = filtered_data[['molecule_chembl_id', 'canonical_smiles', 'standard_value']]
@@ -61,11 +92,11 @@ def preprocess_data(chembl_id):
         st.write("Powered by Parth Sanghavi")
         st.write('Preprocessed_Data.csv can be uploaded to the QSAR webapp (link coming soon) to generate a robust 2D-QSAR model')
 
-        # For feedback
-        st.write("For feedback and inquiries, please email: unprofessor.edu@gmail.com")
+        return True, num_initial_molecules, num_filtered_molecules
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
+        return False, 0, 0
 
 # Function to create a download link for a DataFrame
 def get_table_download_link(df, filename):
