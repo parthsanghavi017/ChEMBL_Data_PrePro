@@ -4,6 +4,8 @@ import numpy as np
 from chembl_webresource_client.new_client import new_client
 import base64
 import time
+from rdkit import Chem
+from rdkit.Chem import AllChem
 
 # Define a Streamlit app function
 def main():
@@ -20,7 +22,7 @@ def main():
         start_time = time.time()
 
         # Preprocess data based on user input
-        success, num_initial_molecules, num_filtered_molecules = preprocess_data(chembl_id)
+        success, num_initial_molecules, num_filtered_molecules, num_omitted_molecules_fp = preprocess_data(chembl_id)
 
         # Measure the end time
         end_time = time.time()
@@ -33,6 +35,8 @@ def main():
             st.write(f"Data preprocessing completed in {processing_time:.2f} seconds.")
             st.write(f"Initial number of molecules: {num_initial_molecules}")
             st.write(f"Number of molecules after filtering: {num_filtered_molecules}")
+            st.write(f"Molecules failed to convert to fingerprint: {num_omitted_molecules_fp}")
+        
         else:
             # Display an error message for invalid ChemBL ID
             st.error("Please enter a valid ChemBL ID.")
@@ -51,7 +55,7 @@ def preprocess_data(chembl_id):
         if targets.empty:
             # Display an error message if no data is found
             st.error("No data found for the provided ChemBL ID.")
-            return False, 0, 0  # Return 0 for both initial and filtered molecules
+            return False, 0, 0, 0  # Return 0 for all molecule counts
 
         selected_target = targets.target_chembl_id[0]
 
@@ -83,20 +87,43 @@ def preprocess_data(chembl_id):
 
         st.write("3. **Preprocessed_Data.csv**: Contains the final preprocessed data with selected columns including calculated pIC50 values.")
 
+        # Calculate Morgan fingerprints
+        morgan_data, num_omitted_molecules = calculate_morgan_fingerprints(preprocessed_data)
+
         # Provide download links to individual CSV files
         st.markdown(get_table_download_link(raw_data, "Raw_Data.csv"), unsafe_allow_html=True)
         st.markdown(get_table_download_link(filtered_data, "Filtered_Data.csv"), unsafe_allow_html=True)
         st.markdown(get_table_download_link(preprocessed_data, "Preprocessed_Data.csv"), unsafe_allow_html=True)
-
+        st.markdown(get_table_download_link(morgan_data, "Morgan_Fingerprints.csv"), unsafe_allow_html=True)
         st.write("\n---\n")
         st.write("Powered by Parth Sanghavi")
-        st.write('Preprocessed_Data.csv can be uploaded to the QSAR webapp (link coming soon) to generate a robust 2D-QSAR model')
+        st.write('Preprocessed_Data.csv and Morgan_Fingerprints.csv can be uploaded to the QSAR webapp (link coming soon) to generate a robust 2D-QSAR model')
 
-        return True, num_initial_molecules, num_filtered_molecules
+        return True, num_initial_molecules, num_filtered_molecules, num_omitted_molecules
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
-        return False, 0, 0
+        return False, 0, 0, 0
+
+
+# Function to calculate Morgan fingerprints
+def calculate_morgan_fingerprints(data):
+    morgan_data = []
+    num_omitted_molecules_fp= 0
+
+    for index, row in data.iterrows():
+        smiles = row['canonical_smiles']
+        molecule = Chem.MolFromSmiles(smiles)
+
+        if molecule is not None:
+            fingerprints = AllChem.GetMorganFingerprintAsBitVect(molecule, 3, nBits=2048)
+            fingerprint_values = list(fingerprints.ToBitString())
+            morgan_data.append([row['molecule_chembl_id']] + fingerprint_values)
+        else:
+            num_omitted_molecules_fp += 1
+
+    morgan_data = pd.DataFrame(morgan_data, columns=['molecule_chembl_id'] + [f'morgan_{i}' for i in range(2048)])
+    return morgan_data, num_omitted_molecules_fp
 
 # Function to create a download link for a DataFrame
 def get_table_download_link(df, filename):
