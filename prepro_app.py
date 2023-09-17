@@ -22,7 +22,7 @@ def main():
         start_time = time.time()
 
         # Preprocess data based on user input
-        success, num_initial_molecules, num_filtered_molecules, num_omitted_molecules_fp = preprocess_data(chembl_id)
+        success, num_initial_molecules, num_filtered_molecules, num_omitted_molecules_fp, preprocessed_data, morgan_data, raw_data, filtered_data = preprocess_data(chembl_id)
 
         # Measure the end time
         end_time = time.time()
@@ -36,7 +36,27 @@ def main():
             st.write(f"Initial number of molecules: {num_initial_molecules}")
             st.write(f"Number of molecules after filtering: {num_filtered_molecules}")
             st.write(f"Molecules failed to convert to fingerprint: {num_omitted_molecules_fp}")
-        
+
+            # Create qsar_raw DataFrame
+            qsar_raw = preprocessed_data[['molecule_chembl_id', 'pIC50']].copy()
+            qsar_raw = pd.concat([qsar_raw, morgan_data.iloc[:, 1:]], axis=1)
+
+            # Save the qsar_raw data to 'qsar_raw.csv'
+            qsar_raw.to_csv("qsar_raw.csv", index=False)
+
+            st.write("Data for QSAR analysis saved as **qsar_raw.csv**.")
+
+            # Provide download links to individual CSV files
+            st.markdown(get_table_download_link(raw_data, "Raw_Data.csv"), unsafe_allow_html=True)
+            st.markdown(get_table_download_link(filtered_data, "Filtered_Data.csv"), unsafe_allow_html=True)
+            st.markdown(get_table_download_link(preprocessed_data, "Preprocessed_Data.csv"), unsafe_allow_html=True)
+            st.markdown(get_table_download_link(morgan_data, "Morgan_Fingerprints.csv"), unsafe_allow_html=True)
+            st.markdown(get_table_download_link(qsar_raw, "qsar_raw.csv"), unsafe_allow_html=True)
+            
+            st.write("\n---\n")
+            st.write("Powered by Parth Sanghavi")
+            st.write('Preprocessed_Data.csv and Morgan_Fingerprints.csv can be uploaded to the QSAR webapp (link coming soon) to generate a robust 2D-QSAR model')
+
         else:
             # Display an error message for invalid ChemBL ID
             st.error("Please enter a valid ChemBL ID.")
@@ -55,7 +75,7 @@ def preprocess_data(chembl_id):
         if targets.empty:
             # Display an error message if no data is found
             st.error("No data found for the provided ChemBL ID.")
-            return False, 0, 0, 0  # Return 0 for all molecule counts
+            return False, 0, 0, 0, None, None, None, None  # Return None for dataframes
 
         selected_target = targets.target_chembl_id[0]
 
@@ -90,26 +110,16 @@ def preprocess_data(chembl_id):
         # Calculate Morgan fingerprints
         morgan_data, num_omitted_molecules = calculate_morgan_fingerprints(preprocessed_data)
 
-        # Provide download links to individual CSV files
-        st.markdown(get_table_download_link(raw_data, "Raw_Data.csv"), unsafe_allow_html=True)
-        st.markdown(get_table_download_link(filtered_data, "Filtered_Data.csv"), unsafe_allow_html=True)
-        st.markdown(get_table_download_link(preprocessed_data, "Preprocessed_Data.csv"), unsafe_allow_html=True)
-        st.markdown(get_table_download_link(morgan_data, "Morgan_Fingerprints.csv"), unsafe_allow_html=True)
-        st.write("\n---\n")
-        st.write("Powered by Parth Sanghavi")
-        st.write('Preprocessed_Data.csv and Morgan_Fingerprints.csv can be uploaded to the QSAR webapp (link coming soon) to generate a robust 2D-QSAR model')
-
-        return True, num_initial_molecules, num_filtered_molecules, num_omitted_molecules
+        return True, num_initial_molecules, num_filtered_molecules, num_omitted_molecules, preprocessed_data, morgan_data, raw_data, filtered_data
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
-        return False, 0, 0, 0
-
+        return False, 0, 0, 0, None, None, None, None
 
 # Function to calculate Morgan fingerprints
 def calculate_morgan_fingerprints(data):
     morgan_data = []
-    num_omitted_molecules_fp= 0
+    num_omitted_molecules_fp = 0
 
     for index, row in data.iterrows():
         smiles = row['canonical_smiles']
@@ -124,6 +134,7 @@ def calculate_morgan_fingerprints(data):
 
     morgan_data = pd.DataFrame(morgan_data, columns=['molecule_chembl_id'] + [f'morgan_{i}' for i in range(2048)])
     return morgan_data, num_omitted_molecules_fp
+
 
 # Function to create a download link for a DataFrame
 def get_table_download_link(df, filename):
