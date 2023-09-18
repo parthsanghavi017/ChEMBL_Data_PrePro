@@ -17,14 +17,14 @@ from math import sqrt
 
 # Define a Streamlit app function
 def main():
-    st.title("Data Preprocessing and QSAR Modeling App")
+    st.title("QSAR Modeling App")
     st.write("Welcome to the Data Preprocessing and QSAR Modeling App.")
-    st.write("This app allows you to preprocess data and build a QSAR regression model based on a ChemBL ID.")
-    st.write("Please enter your ChemBL ID below to get started.")
+    st.write("This app allows you to preprocess data and build a QSAR regression model based on the ChemBL ID.")
+    st.write("If you encounter issues with the application drop a mail to parthsanghavi017@gmail.com. Kindly include the CHEMBL ID, the screenshot of the issue and description if applicable")
+    st.write("Please enter your ChEMBL ID below to get started.")
 
     # User input for ChemBL ID
-    chembl_id = st.text_input("Enter ChemBL ID:")
-
+    chembl_id = st.text_input("Enter ChEMBL ID:")
 
     if st.button("Preprocess Data and Build Model"):
         # Measure the start time
@@ -38,26 +38,46 @@ def main():
 
         # Calculate the processing time
         processing_time = end_time - start_time
+        processing_time_minutes = int(processing_time // 60)
+        processing_time_seconds = int(processing_time % 60)
 
-                
         if success:
             # Display processing time and molecule information
-            st.write(f"Data preprocessing completed in {processing_time:.2f} seconds.")
+            st.write(f"Data preprocessing completed in {processing_time_minutes} minutes and {processing_time_seconds} seconds.")
             st.write(f"Initial number of molecules: {num_initial_molecules}")
             st.write(f"Number of molecules after filtering: {num_filtered_molecules}")
             st.write(f"Molecules failed to convert to fingerprint: {num_omitted_molecules_fp}")
 
+            # Allow downloading of files after each step
+            st.write("1. **Raw_Data.csv**: Contains the original data retrieved from ChEMBL.")
+            st.markdown(get_table_download_link(raw_data, "Raw_Data.csv"), unsafe_allow_html=True)
+
+            st.write("2. **Filtered_Data.csv**: Contains data after applying filters for standard type as IC50, standard relation as '=', and removing empty standard values and duplicates.")
+            st.markdown(get_table_download_link(filtered_data, "Filtered_Data.csv"), unsafe_allow_html=True)
+
+            st.write("3. **Preprocessed_Data.csv**: Contains the final preprocessed data with selected columns including calculated pIC50 values.")
+            st.markdown(get_table_download_link(preprocessed_data, "Preprocessed_Data.csv"), unsafe_allow_html=True)
+
+            st.write("4. **Morgan_Fingerprints.csv**: Contains ChEMBL ID, Morgan Fingerprints with nBits = 2048 and radius = 3")
+            st.markdown(get_table_download_link(morgan_data, "Morgan_Fingerprints.csv"), unsafe_allow_html=True)
+
             # Measure the start time for model development
             model_start_time = time.time()
 
-            # Create qsar_raw DataFrame
-            qsar_raw = preprocessed_data[['pIC50']].copy()
-            qsar_raw = pd.concat([qsar_raw, morgan_data.iloc[:, 1:]], axis=1)
+            # Create qsar_raw DataFrame by joining preprocessed_data and morgan_data on 'molecule_chembl_id'
+            qsar_raw = preprocessed_data[['molecule_chembl_id', 'pIC50']].copy()
+            qsar_raw = qsar_raw.set_index('molecule_chembl_id').join(morgan_data.set_index('molecule_chembl_id'))
 
+            # Reset the index to bring back 'molecule_chembl_id' as a column
+            qsar_raw = qsar_raw.reset_index()
+
+            # Drop the 'molecule_chembl_id' column from the qsar_raw DataFrame
+            qsar_raw = qsar_raw.drop(columns=['molecule_chembl_id'])
+    
             # Save the qsar_raw data to 'qsar_raw.csv'
-            qsar_raw.to_csv("qsar_raw.csv", index=False)
-
-            st.write("Data for QSAR analysis saved as **qsar_raw.csv**.")
+            qsar_raw.to_csv("QSAR_Raw.csv", index=False)
+            st.write("5. **QSAR_Raw.csv**: Contains the pIC50 and Morgan Fingerprint Data")
+            st.markdown(get_table_download_link(qsar_raw, "QSAR_raw.csv"), unsafe_allow_html=True)
 
             # Split the data into internal (80%) and external dataset (20%)
             internal_data, external_data = train_test_split(qsar_raw, test_size=0.2, random_state=42)
@@ -73,7 +93,6 @@ def main():
             y_internal_train = internal_train['pIC50']
             X_internal_test = internal_test.drop(columns=['pIC50'])
             y_internal_test = internal_test['pIC50']
-
 
             # Perform 10 trials for model building and evaluation
             num_trials = 10
@@ -144,6 +163,7 @@ def main():
                 'R2−Q2CV': [f'{r2_qsquared_cv:.2f}'],
                 'R2−Q2Ext': [f' {r2_qsquared_ev:.2f}']
             })
+
             # Create a dataframe for experimental vs predicted values
             train_results = pd.DataFrame({
                 'Experimental pIC50': y_internal_train,
@@ -159,15 +179,11 @@ def main():
                 'Experimental pIC50': y_external,
                 'Predicted pIC50 (EV)': external_predictions
             })
-            # Save the results to 'qsar_results.csv'
-            results_df.to_csv("qsar_results.csv", index=False)
-
+            # Allow downloading of results file after the model is built
+            st.write("6. **QSAR_Results.csv**: Contains the results of the QSAR model")
+            st.markdown(get_table_download_link(results_df, "QSAR_Results.csv"), unsafe_allow_html=True)
 
             # Plot 1: Experimental vs Predicted for Train
-# Replace these lines:
-# st.pyplot()
-
-            # With these lines:
             fig, ax = plt.subplots()
             sns.scatterplot(x='Experimental pIC50', y='Predicted pIC50 (Train)', data=train_results, ax=ax)
             plt.title('Experimental vs Predicted pIC50 for Train')
@@ -176,7 +192,6 @@ def main():
             # Add a central line (y=x)
             plt.plot([train_results.min().min(), train_results.max().max()], [train_results.min().min(), train_results.max().max()], color='red', linestyle='--')
             st.pyplot(fig)
-
 
             # Plot 2: Experimental vs Predicted for CV
             fig2, ax2 = plt.subplots()
@@ -198,34 +213,30 @@ def main():
             plt.plot([ev_results.min().min(), ev_results.max().max()], [ev_results.min().min(), ev_results.max().max()], color='red', linestyle='--')
             st.pyplot(fig3)
 
-            
             # Measure the end time for model development
             model_development_time = time.time() - model_start_time
 
-            st.write(f"Model development completed in {model_development_time:.2f} seconds.")
+            # Calculate the model development time
+            model_development_time_minutes = int(model_development_time // 60)
+            model_development_time_seconds = int(model_development_time % 60)
 
+            st.write(f"Model development completed in {model_development_time_minutes} minutes and {model_development_time_seconds} seconds.")
             st.write("\n---\n")
             st.write("QSAR Model Results:")
             st.write(results_df)
 
             # Generate a downloadable link for the model
-            model_filename = "model.pkl"
+            model_filename = "RF_Model.pkl"
             with open(model_filename, 'wb') as model_file:
                 pickle.dump(rf_model, model_file)
 
-            # Provide download links to individual CSV files
-            st.markdown(get_table_download_link(raw_data, "Raw_Data.csv"), unsafe_allow_html=True)
-            st.markdown(get_table_download_link(filtered_data, "Filtered_Data.csv"), unsafe_allow_html=True)
-            st.markdown(get_table_download_link(preprocessed_data, "Preprocessed_Data.csv"), unsafe_allow_html=True)
-            st.markdown(get_table_download_link(morgan_data, "Morgan_Fingerprints.csv"), unsafe_allow_html=True)
-            st.markdown(get_table_download_link(qsar_raw, "qsar_raw.csv"), unsafe_allow_html=True)
-            st.markdown(get_table_download_link(results_df, "QSAR_Results.csv"), unsafe_allow_html=True)
+            # Provide download links to the QSAR model
+            st.write("7. **RF_Model.pkl**: Contains the trained Random Forest QSAR model")
             st.markdown(get_model_download_link(model_filename), unsafe_allow_html=True)
 
             st.write("\n---\n")
             st.write("Powered by Parth Sanghavi")
-            st.write('Preprocessed_Data.csv and Morgan_Fingerprints.csv can be uploaded to the QSAR webapp (link coming soon) to generate a robust 2D-QSAR model')
-
+            
         else:
             # Display an error message for invalid ChemBL ID
             st.error("Please enter a valid ChemBL ID.")
@@ -255,26 +266,18 @@ def preprocess_data(chembl_id):
         # Step 1: Save the raw data to 'Raw_Data.csv'
         raw_data = pd.DataFrame.from_dict(res)
         raw_data.to_csv("Raw_Data.csv", index=False)
-
-        st.write("1. **Raw_Data.csv**: Contains the original data retrieved from ChEMBL.")
-
         num_initial_molecules = len(raw_data)
 
         # Step 2: Filter data and save to 'Filtered_Data.csv'
         filtered_data = raw_data.dropna(subset=['standard_value'])
         filtered_data = filtered_data.drop_duplicates(subset=['canonical_smiles', 'molecule_chembl_id'])
         filtered_data.to_csv("Filtered_Data.csv", index=False)
-
-        st.write("2. **Filtered_Data.csv**: Contains data after applying filters for standard type as IC50, standard relation as '=', and removing empty standard values and duplicates.")
-
         num_filtered_molecules = len(filtered_data)
 
         # Step 3: Calculate pIC50 and save to 'Preprocessed_Data.csv'
         preprocessed_data = filtered_data[['molecule_chembl_id', 'canonical_smiles', 'standard_value']]
         preprocessed_data['pIC50'] = -np.log10(filtered_data['standard_value'].astype(float) * 1e-9)
         preprocessed_data.to_csv("Preprocessed_Data.csv", index=False)
-
-        st.write("3. **Preprocessed_Data.csv**: Contains the final preprocessed data with selected columns including calculated pIC50 values.")
 
         # Calculate Morgan fingerprints
         morgan_data, num_omitted_molecules = calculate_morgan_fingerprints(preprocessed_data)
@@ -285,10 +288,13 @@ def preprocess_data(chembl_id):
         st.error(f"An error occurred: {str(e)}")
         return False, 0, 0, 0, None, None, None, None
 
-# Function to calculate Morgan fingerprints
 def calculate_morgan_fingerprints(data):
     morgan_data = []
     num_omitted_molecules_fp = 0
+
+    # Lists to store Morgan fingerprints and molecule IDs
+    morgan_fps = []
+    molecule_ids = []
 
     for index, row in data.iterrows():
         smiles = row['canonical_smiles']
@@ -297,19 +303,15 @@ def calculate_morgan_fingerprints(data):
         if molecule is not None:
             fingerprints = AllChem.GetMorganFingerprintAsBitVect(molecule, 3, nBits=2048)
             fingerprint_values = list(fingerprints.ToBitString())
-            morgan_data.append([row['molecule_chembl_id']] + fingerprint_values)
+            morgan_fps.append([row['molecule_chembl_id']] + fingerprint_values)
+            molecule_ids.append(row['molecule_chembl_id'])
         else:
             num_omitted_molecules_fp += 1
 
-    morgan_data = pd.DataFrame(morgan_data, columns=['molecule_chembl_id'] + [f'morgan_{i}' for i in range(2048)])
+    # Create a DataFrame with 'molecule_chembl_id' and individual Morgan fingerprint columns
+    morgan_data = pd.DataFrame(morgan_fps, columns=['molecule_chembl_id'] + [f'morgan_{i}' for i in range(2048)])
+
     return morgan_data, num_omitted_molecules_fp
-
-
-# Function to calculate internal train RMSE
-def calculate_internal_train_rmse(model, X_train, y_train):
-    y_train_pred = model.predict(X_train)
-    rmse = sqrt(mean_squared_error(y_train, y_train_pred))
-    return rmse
 
 # Function to create a download link for the model
 def get_model_download_link(model_filename):
