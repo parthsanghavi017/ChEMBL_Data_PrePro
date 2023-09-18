@@ -277,7 +277,9 @@ def preprocess_data(chembl_id):
         # Step 3: Calculate pIC50 and save to 'Preprocessed_Data.csv'
         preprocessed_data = filtered_data[['molecule_chembl_id', 'canonical_smiles', 'standard_value']]
         preprocessed_data['pIC50'] = -np.log10(filtered_data['standard_value'].astype(float) * 1e-9)
-        preprocessed_data.to_csv("Preprocessed_Data.csv", index=False)
+
+        # Drop rows with "inf" values in the 'pIC50' column
+        preprocessed_data = preprocessed_data.replace([np.inf, -np.inf], np.nan).dropna(subset=['pIC50'])
 
         # Calculate Morgan fingerprints
         morgan_data, num_omitted_molecules = calculate_morgan_fingerprints(preprocessed_data)
