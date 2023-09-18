@@ -74,10 +74,10 @@ def main():
             # Drop the 'molecule_chembl_id' column from the qsar_raw DataFrame
             qsar_raw = qsar_raw.drop(columns=['molecule_chembl_id'])
     
-            # Save the qsar_raw data to 'qsar_raw.csv'
+            # After Step 5: Save the qsar_raw data to 'QSAR_Raw.csv'
             qsar_raw.to_csv("QSAR_Raw.csv", index=False)
             st.write("5. **QSAR_Raw.csv**: Contains the pIC50 and Morgan Fingerprint Data")
-            st.markdown(get_table_download_link(qsar_raw, "QSAR_raw.csv"), unsafe_allow_html=True)
+            st.markdown(get_table_download_link(qsar_raw, "QSAR_Raw.csv"), unsafe_allow_html=True)
 
             # Split the data into internal (80%) and external dataset (20%)
             internal_data, external_data = train_test_split(qsar_raw, test_size=0.2, random_state=42)
@@ -179,7 +179,9 @@ def main():
                 'Experimental pIC50': y_external,
                 'Predicted pIC50 (EV)': external_predictions
             })
-            # Allow downloading of results file after the model is built
+        
+            # After Step 6: Save the results_df data to 'QSAR_Results.csv'
+            results_df.to_csv("QSAR_Results.csv", index=False)
             st.write("6. **QSAR_Results.csv**: Contains the results of the QSAR model")
             st.markdown(get_table_download_link(results_df, "QSAR_Results.csv"), unsafe_allow_html=True)
 
@@ -282,10 +284,16 @@ def preprocess_data(chembl_id):
 
         # Step 3: Calculate pIC50 and save to 'Preprocessed_Data.csv'
         preprocessed_data = filtered_data[['molecule_chembl_id', 'canonical_smiles', 'standard_value']]
-        preprocessed_data['pIC50'] = -np.log10(filtered_data['standard_value'].astype(float) * 1e-9)
+
+        # Filter out rows with empty canonical SMILES
+        preprocessed_data = preprocessed_data.dropna(subset=['canonical_smiles'])
+
+        # Calculate pIC50
+        preprocessed_data['pIC50'] = -np.log10(preprocessed_data['standard_value'].astype(float) * 1e-9)
 
         # Drop rows with "inf" values in the 'pIC50' column
         preprocessed_data = preprocessed_data.replace([np.inf, -np.inf], np.nan).dropna(subset=['pIC50'])
+        preprocessed_data.to_csv("Preprocessed_Data.csv", index=False)
 
         # Calculate Morgan fingerprints
         morgan_data, num_omitted_molecules = calculate_morgan_fingerprints(preprocessed_data)
@@ -296,6 +304,8 @@ def preprocess_data(chembl_id):
         st.error(f"An error occurred: {str(e)}")
         return False, 0, 0, 0, None, None, None, None
 
+
+# Function to calculate Morgan fingerprints
 def calculate_morgan_fingerprints(data):
     morgan_data = []
     num_omitted_molecules_fp = 0
@@ -309,10 +319,16 @@ def calculate_morgan_fingerprints(data):
         molecule = Chem.MolFromSmiles(smiles)
 
         if molecule is not None:
-            fingerprints = AllChem.GetMorganFingerprintAsBitVect(molecule, 3, nBits=2048)
-            fingerprint_values = list(fingerprints.ToBitString())
-            morgan_fps.append([row['molecule_chembl_id']] + fingerprint_values)
-            molecule_ids.append(row['molecule_chembl_id'])
+            try:
+                fingerprints = AllChem.GetMorganFingerprintAsBitVect(molecule, 3, nBits=2048)
+                if fingerprints:
+                    fingerprint_values = list(fingerprints.ToBitString())
+                    morgan_fps.append([row['molecule_chembl_id']] + fingerprint_values)
+                    molecule_ids.append(row['molecule_chembl_id'])
+                else:
+                    num_omitted_molecules_fp += 1
+            except Exception as e:
+                num_omitted_molecules_fp += 1
         else:
             num_omitted_molecules_fp += 1
 
@@ -320,6 +336,8 @@ def calculate_morgan_fingerprints(data):
     morgan_data = pd.DataFrame(morgan_fps, columns=['molecule_chembl_id'] + [f'morgan_{i}' for i in range(2048)])
 
     return morgan_data, num_omitted_molecules_fp
+
+
 
 # Function to create a download link for the model
 def get_model_download_link(model_filename):
