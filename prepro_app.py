@@ -191,7 +191,9 @@ def main():
             plt.ylabel('Predicted pIC50 (Train)')
             # Add a central line (y=x)
             plt.plot([train_results.min().min(), train_results.max().max()], [train_results.min().min(), train_results.max().max()], color='red', linestyle='--')
-            st.pyplot(fig)
+            plot_filename1 = "plot_train.png"  # Define a filename
+            plt.savefig(plot_filename1)  # Save the plot as a PNG image
+            st.image(plot_filename1)  # Display the saved image in Streamlit
 
             # Plot 2: Experimental vs Predicted for CV
             fig2, ax2 = plt.subplots()
@@ -201,7 +203,9 @@ def main():
             plt.ylabel('Predicted pIC50 (CV)')
             # Add a central line (y=x)
             plt.plot([cv_results.min().min(), cv_results.max().max()], [cv_results.min().min(), cv_results.max().max()], color='red', linestyle='--')
-            st.pyplot(fig2)
+            plot_filename2 = "plot_cv.png"  # Define a filename
+            plt.savefig(plot_filename2)  # Save the plot as a PNG image
+            st.image(plot_filename2)  # Display the saved image in Streamlit
 
             # Plot 3: Experimental vs Predicted for EV
             fig3, ax3 = plt.subplots()
@@ -211,7 +215,9 @@ def main():
             plt.ylabel('Predicted pIC50 (EV)')
             # Add a central line (y=x)
             plt.plot([ev_results.min().min(), ev_results.max().max()], [ev_results.min().min(), ev_results.max().max()], color='red', linestyle='--')
-            st.pyplot(fig3)
+            plot_filename3 = "plot_ev.png"  # Define a filename
+            plt.savefig(plot_filename3)  # Save the plot as a PNG image
+            st.image(plot_filename3)  # Display the saved image in Streamlit
 
             # Measure the end time for model development
             model_development_time = time.time() - model_start_time
