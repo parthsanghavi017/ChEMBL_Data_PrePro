@@ -1,0 +1,2 @@
+Descriptor class,N,Training set (R-Squared),RMSE_Tr,10-Fold CV (Q-squared),CV_RMSE,External set (Q-Squared),EV-RMSE,R2−Q2CV,R2−Q2Ext
+Morgan,2048,0.91 ± 0.39,0.22 ± 0.00,0.32 ± 0.00,0.60 ± 0.00,0.02 ± 0.55,0.79 ± 0.00,0.59, 0.88
